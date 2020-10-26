@@ -49,9 +49,7 @@ df_covid_july <- read_csv(covid_july_filename)
 df_temp2 <- read_csv(temperature_filename)
 ```
 
-
-
-## Process the data
+## Longitude, Temperature and COVID19
 
 ```{r}
 df_covid %>% glimpse
@@ -72,20 +70,6 @@ df_avg <-
 df_avg
 ```
 
-
-```{r}
-df_avg %>%
-  filter(totalConfirm < 2e7) %>%
-  ggplot(aes(x = lat, y = totalConfirm)) +
-  geom_point() + 
-  geom_smooth() + 
-  labs(
-    x= "latitude",
-    y = "total confirmed cases",
-    title = "Relationship between latitude and confirmed cases "
-  )
-```
-
 ```{r}
 df_temp_avg <- 
   df_temp %>%
@@ -96,7 +80,6 @@ df_temp_avg <-
   rename(region = Country)
 df_temp_avg
 ```
-
 
 ```{r}
 df_temp_case <- merge(df_temp_avg,df_avg,by="region")
@@ -115,6 +98,29 @@ df_temp_case %>%
     title = "Relationship between latitude and temperature "
   )
 ```
+
+**Observations** 
+Latitudes are angles that range from zero degrees at the equator to 90 degrees North or 90 degrees South at the poles. From this graph, we can see that as the magnitude of latitude increases, the temperature falls, and vice versa. Scientifically this is true as closer to the country is to the equator, smaller the magnitude of latitude becomes and higher the temperature rises.  Therefore, we can conclude that latitude is inversely related to temperature 
+
+```{r}
+df_avg %>%
+  filter(totalConfirm < 2e7) %>%
+  ggplot(aes(x = lat, y = totalConfirm)) +
+  geom_point() + 
+  geom_smooth() + 
+  labs(
+    x= "latitude",
+    y = "total confirmed cases",
+    title = "Relationship between latitude and confirmed cases "
+  )
+```
+**Observations**
+
+Since we know the inverse relationship between latitude and the temperature, from this graph, we can observe that closer the latitude is to the equator, less COVID19 cases have been reported. And higher the magnitude value of latitude, higher number of COVID19 cases have been reported. Therefore, we know that higher the temperature, smaller the magnitude value of latitude and COVID19 cases. 
+
+## Relationship Between Latitude and the Spread of the Virus in July
+To make a deeper analysis, we decided July for the month to find the relationship between the latitude and the spread of the virus in different regions. The spread is calculated by subtracting the number of cumulative confirmed cases on the first day of the month from the number of cumulative confirmed cases on the last day of the month. In the graph below, the x axis is the latitude, y axis is the spread and the color of the graph indicates the region of the country. 
+
 
 ```{r}
 names(df_covid)[names(df_covid) == "Province/State"] <- "Province_State"
@@ -166,6 +172,12 @@ df_spread %>%
 
   
 ```
+**Observations **
+In Eastern Mediterranean, the spread of the virus is significantly large around latitude of 20 to 30. There’s a general increasing trend. In South-East Asia, there’s no big trend of the relationship between the latitude and the spread. There are outliers in Africa, Europe, and Western Pacific that make the graph hard to observe the trend. 
+
+We eliminated outliers for Western Pacific, Europe, and Africa to see the trend of the graph. 
+
+
 
 ```{r}
 df_spread %>%
@@ -177,6 +189,8 @@ df_spread %>%
     geom_point()+ 
     ggtitle("Spread vs Latitude in Western Pacific without outlier")
 ```
+**Observations **
+Most of the countries in Western Pacific have a spread of below 500, except some large numbers of spread in latitude around 25. 
 
 
 ```{r}
@@ -189,7 +203,8 @@ df_spread %>%
     geom_point()+
     ggtitle("Spread vs Latitude in Europe without outlier")
 ```
-
+**Observations **
+There’s no overall trend in the countries in Europe, but there are a number of countries around latitude of 50 with significantly large spread of the virus. 
 
 ```{r}
 df_spread %>%
@@ -201,6 +216,13 @@ df_spread %>%
     geom_point()+
     ggtitle("Spread vs Latitude in Africa without outlier")
 ```
+**Observations **
+There’s an increasing trend in the countries in Africa.
+
+ 
+## Relationship between average temperature in July and incidence rate
+Then we combined the average temperature of July to do a fitting analysis with the incidence rate, which describes how quickly disease occurs in a population. The results are shown in the figure below. 
+
 
 ```{r}
 covid_july <- df_covid_july %>% 
@@ -272,6 +294,13 @@ ggplot(covid_tmp, aes(july_temp, logCasesJuly))+
   )
 
 ```
+**Observations **
+
+We can see that the relationship between temperature and incidence rate is not linear. However, we observe that as the temperature rose above 30 celcius, the spread of the virus converged (this also happens when the temperature falls to below 5 celsius). This implies the virus is mostly active within a certain temperature range. Based on the dataset from July, this temperature range is around 5-30 celsius. 
+
+## Relationship between average temperature in July and top 20 countries with total confirmed case
+ 
+
 ```{r}
 covid_tmp_july20 <- covid_tmp %>% 
   arrange(desc(logCasesJuly)) %>% 
@@ -298,6 +327,8 @@ ggplot(covid_tmp.temp_map, aes(long, lat, group = group)) +
   ) 
 
 ```
+**Observations** 
+In the map, the color of each country represents it’s average temperature in July, and the circled countries represent the top 20 countries with the most confirmed cases in July. From the graph, it is very interesting that the spread of coronavirus is mainly concentrated in the temperate zone and countries with higher latitude, while the spread is less in the tropical zone such as Africa. This validates our hypothesis that the higher the temperature, the less transmission will occur.
 
 
 ```{r}
@@ -416,6 +447,7 @@ df_covidChina %>%
 **Observations:**
 This figure shows a clear difference that difference provinces have outbreaks at different time period. While most of the provinces near Hubei are affected in January and February, northern provinces like Heilongjiang and Beijing are affected later, which is a sign of more severe community transmission. The outbreaks in January are mostly due to transmission from Wuhan. Hubei, the center of outbreak in China, thus is excluded from the study of how the climate affects COVID transmission. 
 
-
+##Conclusion 
+There are multiple reasons for the change in difference of transmission rates of the coronavirus, such as the population, the density, the rate of traffic flow, the percentage of people wearing masks or PPE etc. However, this report focuses on the climate - more specifically the temperature of a country/region for the change in rate of transmission to see the effects of the coronavirus. In the report, we were able to see results on how temperature affects the transmission rate of the coronavirus, where if temperature of the region decreases, the transmission rate increases.
 
 
