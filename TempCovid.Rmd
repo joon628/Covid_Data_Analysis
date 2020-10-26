@@ -1,0 +1,421 @@
+---
+title: "COVID-19: Effects of Temperature "
+author: "Team Zeta"
+date: 2020-10-27
+output:
+  github_document:
+    toc: true
+---
+
+*Background*: [COVID-19](https://en.wikipedia.org/wiki/Coronavirus_disease_2019) is the disease caused by the virus SARS-CoV-2. In 2020 it became a global pandemic, leading to huge loss of life and tremendous disruption to society. The New York Times (as of writing) publishes up-to-date data on the progression of the pandemic across the United States---we will study these data in this challenge.
+
+```{r setup}
+library(tidyverse)
+library(ggrepel)
+library(ggpubr)
+library(devtools)
+library(ggplot2)
+library(proto)
+library(base)
+library(lubridate)
+library(sf)
+library(tmap)
+library(maptools)
+library(gganimate)
+```
+
+## Load the dataset
+
+```{r}
+#covid_oct_filename <- "./data/COVID/covid_19.csv"
+#covid_july_filename <- "./data/COVID/covid_19_july.csv"
+#covid_may_filename <- "./data/COVID/covid_19_may.csv"
+covid_july_filename <- "./data/covid_19_july.csv"
+PopulationChina <- "./data/AnnualbyProvince.csv"
+filename <- "./data/covid_19_clean_complete.csv"
+temp_filename <- "./data/temp.csv"
+temperature_filename <- "./data/covid_19_temp.csv"
+
+mydat = readShapePoly("bou2_4p.shp")
+```
+
+```{r}
+
+df_covid <- read_csv(filename)
+df_covidTemp <- read_csv(filename)
+df_popChina <- read_csv(PopulationChina) %>% select("Province/State", "Pop (k)")
+df_temp <- read_csv(temp_filename)
+df_covid_july <- read_csv(covid_july_filename)
+df_temp2 <- read_csv(temperature_filename)
+```
+
+
+
+## Process the data
+
+```{r}
+df_covid %>% glimpse
+```
+
+
+```{r}
+df_avg <- 
+  df_covid %>%  
+  rename(region = 'Country/Region')  %>%
+  group_by(region)  %>%
+  summarise (
+    totalConfirm = sum(Confirmed),
+    totalDeath = sum(Deaths), 
+    long = mean(Long),
+    lat = mean(Lat)
+    ) 
+df_avg
+```
+
+
+```{r}
+df_avg %>%
+  filter(totalConfirm < 2e7) %>%
+  ggplot(aes(x = lat, y = totalConfirm)) +
+  geom_point() + 
+  geom_smooth() + 
+  labs(
+    x= "latitude",
+    y = "total confirmed cases",
+    title = "Relationship between latitude and confirmed cases "
+  )
+```
+
+```{r}
+df_temp_avg <- 
+  df_temp %>%
+  group_by(Country) %>%
+  summarise(
+    avgOct = mean(Oct)
+  ) %>%
+  rename(region = Country)
+df_temp_avg
+```
+
+
+```{r}
+df_temp_case <- merge(df_temp_avg,df_avg,by="region")
+df_temp_case
+```
+
+
+```{r}
+df_temp_case %>%
+    ggplot(aes(lat, avgOct ) ) + 
+    geom_point() + 
+    geom_smooth(aes( group = 1 )) +
+  labs(
+    x= "latitude",
+    y = "temperature",
+    title = "Relationship between latitude and temperature "
+  )
+```
+
+```{r}
+names(df_covid)[names(df_covid) == "Province/State"] <- "Province_State"
+names(df_covid)[names(df_covid) == "Country/Region"] <- "Country_Region"
+names(df_covid)[names(df_covid) == "WHO Region"] <- "WHO_region"
+
+df_cleancovid <-
+  df_covid %>%
+    filter(
+      Date == "2020-07-01"| Date == "2020-07-27"
+    ) %>%
+    select(
+      Province_State,
+      Country_Region,
+      Lat,
+      Date,
+      Confirmed,
+      WHO_region
+    ) %>%
+    group_by(Province_State) %>%
+    pivot_wider(
+      names_from = Date,
+      values_from = Confirmed
+    )
+
+  
+names(df_cleancovid)[names(df_cleancovid) == "2020-07-01"] <- "Confirmed_start"
+names(df_cleancovid)[names(df_cleancovid) == "2020-07-27"] <- "Confirmed_end"
+
+df_cleancovid
+
+df_spread <-
+  df_cleancovid %>%
+    mutate(
+      spread = Confirmed_end - Confirmed_start
+    ) %>%
+  filter(
+    spread<500000 & spread!=0
+  )
+
+
+df_spread %>%
+  ggplot(aes(x = Lat, y = spread, color=WHO_region)) +
+    geom_point()+
+    facet_wrap(~WHO_region, scales = "free") +
+    labs(color = "Region")+
+    ggtitle("Spread vs Latitude in different region in July")
+  
+
+  
+```
+
+```{r}
+df_spread %>%
+  filter(
+    WHO_region == "Western Pacific",
+    spread < 5000
+  ) %>%
+  ggplot(aes(x = Lat, y = spread)) +
+    geom_point()+ 
+    ggtitle("Spread vs Latitude in Western Pacific without outlier")
+```
+
+
+```{r}
+df_spread %>%
+  filter(
+    WHO_region == "Europe",
+    spread < 150000
+  ) %>%
+  ggplot(aes(x = Lat, y = spread)) +
+    geom_point()+
+    ggtitle("Spread vs Latitude in Europe without outlier")
+```
+
+
+```{r}
+df_spread %>%
+  filter(
+    WHO_region == "Africa",
+    spread < 100000
+  ) %>%
+  ggplot(aes(x = Lat, y = spread)) +
+    geom_point()+
+    ggtitle("Spread vs Latitude in Africa without outlier")
+```
+
+```{r}
+covid_july <- df_covid_july %>% 
+  select('Country_Region','Last_Update', 'Confirmed', 'Deaths', 'Recovered', 'Incidence_Rate') %>% 
+  rename(
+    region = 'Country_Region',
+    Cases = 'Confirmed',
+    ) %>% 
+  separate(col='Last_Update',sep=' ', into=c('date', 'time'), remove = TRUE)
+
+covid_sum_july <-covid_july %>% 
+  drop_na(Incidence_Rate) %>% 
+  group_by(region) %>% 
+  summarise(
+    logCases=log(sum(Cases)),
+    meanIncidenceRate=mean(Incidence_Rate)
+    ) 
+covid_sum_july$region[179]<-"USA"
+```
+
+
+```{r}
+world_map <- map_data("world")
+```
+
+
+
+```{r}
+temp <- df_temp2 %>% 
+  select(country, july_temp) %>% 
+  drop_na(july_temp) %>% 
+  rename(region=country)
+```
+
+
+```{r}
+temp$region[144]<-"USA"
+```
+
+```{r}
+covid_sum_july <- covid_sum_july %>% 
+  rename(
+    logCasesJuly=logCases,
+    meanIncidenceRateJuly=meanIncidenceRate
+  )
+```
+
+```{r}
+covid_sum_july
+```
+
+```{r}
+covid_tmp <- left_join(covid_sum_july, temp, by = "region")
+```
+
+```{r}
+covid_tmp 
+```
+
+```{r}
+ggplot(covid_tmp, aes(july_temp, logCasesJuly))+
+  geom_point(color='black',alpha=0.5)+
+  geom_smooth(color="light blue",method="loess", se=F) +
+  theme_grey()+
+  labs(
+    x = "July Average Temperature",
+    y = "Incidence Rate",
+    title = "Relationship between average temperature in July and incidence rate"
+  )
+
+```
+```{r}
+covid_tmp_july20 <- covid_tmp %>% 
+  arrange(desc(logCasesJuly)) %>% 
+  head(20)
+covid_tmp_july20
+```
+
+```{r}
+covid_tmp.temp_map <- left_join(covid_tmp, world_map, by = "region")
+covid_tmp_july20.map <- left_join(covid_tmp_july20, world_map, by = "region")
+
+ggplot(covid_tmp.temp_map, aes(long, lat, group = group)) +
+  geom_polygon(aes(fill = july_temp), color = "white") +
+  stat_ellipse(data=covid_tmp_july20.map, alpha = 1/2,type = "norm", linetype = 2)+
+  scale_fill_viridis_c(option = "D") +
+  theme_grey() +
+  theme(legend.position = "bottom") +
+  labs(
+    x = "Longtitude",
+    y = "Latitude",
+    title = "Relationship between average temperature in July and total 20 confirmed \n case country",
+    fill = "Average Temperature",
+    color = covid_tmp_july20.map
+  ) 
+
+```
+
+
+```{r}
+july_temp_inci <- ggplot(covid_tmp, aes(july_temp, logCasesJuly))+
+  geom_point(color='black',alpha=0.5)+
+  geom_smooth(color="light blue",method="loess", se=F) +
+  theme_grey()+
+  labs(
+    x = "July Average Temperature",
+    y = "Incidence Rate",
+    title = "Relationship between average temperature in July and incidence rate"
+  )
+
+```
+
+
+```{r}
+covid_tmp %>% 
+  filter(region=="USA")
+```
+
+```{r}
+covid_tmp_july20 <- covid_tmp %>% 
+  arrange(desc(logCasesJuly)) %>% 
+  head(20)
+```
+
+```{r}
+covid_tmp_july20
+```
+
+
+**Case Study: China**
+The reason for focusing on a single country: this minimizes the effect of government policies and oversea travel, since the same policies and advertising of anti-covid measures are applied throughout China. 
+
+
+```{r}
+df_covidChina <- df_covidTemp %>%
+  filter(`Country/Region` == "China") %>% 
+  inner_join(df_popChina, by = "Province/State") 
+df_covidChina
+```
+
+```{r}
+df_covidChina %>%
+ filter(Date == max(Date)) %>%
+  mutate(Confirmedper100k = Confirmed / `Pop (k)` / 100, 
+         date_num = as.integer(Date)) %>%
+  ggplot() +
+    geom_polygon(
+    data = fortify(mydat),
+    aes(x = long, y = lat, group = id), 
+               colour = "grey",
+               fill = NA) +
+  theme_grey() + 
+  coord_map() +
+
+  geom_point(
+    data = . %>% filter(`Province/State` != "Hubei"), 
+    aes(x = Long, y = Lat, size = Confirmed, alpha = Confirmedper100k),
+    color = "red") +
+  ggtitle("Cumulative Number of Confirmed COVID-19 Cases in China")
+```
+
+```{r}
+PlotChina <-
+df_covidChina %>%
+  filter(Date <= "2020-04-20") %>%
+  mutate(Confirmedper100k = Confirmed / `Pop (k)` / 100, 
+         date_num = as.integer(Date)) %>%
+  ggplot() +
+    geom_polygon(
+    data = fortify(mydat),
+    aes(x = long, y = lat, group = id), 
+               colour = "grey",
+               fill = NA) +
+  theme_grey() + 
+  coord_map() +
+
+  geom_point(
+    data = . %>% filter(`Province/State` != "Hubei"), 
+    aes(x = Long, y = Lat, size = Confirmed, alpha = Confirmedper100k),
+    color = "red") 
+
+```
+
+
+```{r}
+PlotChina + transition_time(date_num) +
+  labs(title = "Date: {frame_time - 18282}")
+```
+**Observations:**
+The reason for focusing on a single country: this minimizes the effect of government policies and oversea travel, since the same policies and advertising of anti-covid measures are applied throughout China. 
+
+This animation shows the increasing number of COVID-19 cases from January 22th to April 8th, which represents the start of transmission, the highest outbreak and the end of community transmission of COVID-19 in China. The data is represented for each province in China, excluding the outlier Hubei, where the outbreak first started. 
+
+The size of each data point represents the absolute number of confirmed cases in each province, while the color of each datapoint represents the number of confirmed cases per 100k population. By examining only the number of confirmed cases, it seems like provinces on shoreline in southern China are most severely impacted by COVID-19. However, the population of provinces needs to be taken into account. Most coastal provinces have a much larger population than the inland part. Dividing confirmed cases by total population yields the confirmed per 100k people, which gives a more accurate representation of how severe the transmission is. This is shown on the graph by a color scale. The darker color shows higher confirmed cases per 100k. 
+
+It can be seen that most dark red dots are located on the eastern part of China. The highest infection rate occurs in Heilongjiang, which is the most northern part of China.
+
+Multiple facts can contribute to this pattern, including temperature, humidity, intra-state travel, oversea transmission, and communication with Hubei, where the outbreak starts. 
+
+A close examination of the animation shows, the provinces around Wuhan are more severely impacted at the starting of this outbreak, while the situation gets worsen in northern provinces like Heilongjiang, as well as increase. 
+
+Thus, I conclude that COVID-19 has higher transmitting rate on the shoreline and in colder environment. 
+
+
+```{r}
+df_covidChina %>%
+  filter(`Province/State` != "Hubei") %>%
+  ggplot() +
+  geom_line(aes(x = Date, y = Confirmed, color = `Province/State`)) +
+  labs(title = "COVID Outbreak starts at different time in each province in China")
+```
+
+**Observations:**
+This figure shows a clear difference that difference provinces have outbreaks at different time period. While most of the provinces near Hubei are affected in January and February, northern provinces like Heilongjiang and Beijing are affected later, which is a sign of more severe community transmission. The outbreaks in January are mostly due to transmission from Wuhan. Hubei, the center of outbreak in China, thus is excluded from the study of how the climate affects COVID transmission. 
+
+
+
+
