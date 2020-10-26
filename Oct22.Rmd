@@ -79,9 +79,11 @@ df_covidChina %>%
     color = "red") 
 
 ```
+
+
 ```{r}
 PlotChina + transition_time(date_num) +
-  labs(title = "Date: {frame_time}")
+  labs(title = "Date: {frame_time - 18282}")
 ```
 **Observations:**
 This animation shows the increasing number of COVID-19 cases from January 22th to April 8th, which represents the start of transmission, the highest outbreak and the end of community transmission of COVID-19 in China. The data is represented for each province in China, excluding the outlier Hubei, where the outbreak first started. 
@@ -101,8 +103,9 @@ Thus, I conclude that COVID-19 has higher transmitting rate on the shoreline and
 df_covidChina %>%
   filter(`Province/State` != "Hubei") %>%
   ggplot() +
-  geom_line(aes(x = Date, y = Confirmed, color = `Province/State`))
+  geom_line(aes(x = Date, y = Confirmed, color = `Province/State`)) +
+  labs(title = "COVID Outbreak starts at different time in each province in China")
 ```
 
 **Observations:**
-This figure shows a clear difference that difference provinces have outbreaks at different time period. While most of the provinces near Hubei are affected in January and Fabuary, northern provinces like Heilongjiang and Beijing are affected later, which is a sign of more severe community transmission. 
+This figure shows a clear difference that difference provinces have outbreaks at different time period. While most of the provinces near Hubei are affected in January and February, northern provinces like Heilongjiang and Beijing are affected later, which is a sign of more severe community transmission. 
