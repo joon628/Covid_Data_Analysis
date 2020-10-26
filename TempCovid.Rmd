@@ -67,7 +67,7 @@ df_avg <-
     long = mean(Long),
     lat = mean(Lat)
     ) 
-df_avg
+#df_avg
 ```
 
 ```{r}
@@ -78,12 +78,12 @@ df_temp_avg <-
     avgOct = mean(Oct)
   ) %>%
   rename(region = Country)
-df_temp_avg
+#df_temp_avg
 ```
 
 ```{r}
 df_temp_case <- merge(df_temp_avg,df_avg,by="region")
-df_temp_case
+#df_temp_case
 ```
 
 
@@ -361,7 +361,7 @@ covid_tmp_july20
 ```
 
 
-**Case Study: China**
+## Case Study: China
 The reason for focusing on a single country: this minimizes the effect of government policies and oversea travel, since the same policies and advertising of anti-covid measures are applied throughout China. 
 
 
@@ -447,7 +447,7 @@ df_covidChina %>%
 **Observations:**
 This figure shows a clear difference that difference provinces have outbreaks at different time period. While most of the provinces near Hubei are affected in January and February, northern provinces like Heilongjiang and Beijing are affected later, which is a sign of more severe community transmission. The outbreaks in January are mostly due to transmission from Wuhan. Hubei, the center of outbreak in China, thus is excluded from the study of how the climate affects COVID transmission. 
 
-##Conclusion 
+## Conclusion 
 There are multiple reasons for the change in difference of transmission rates of the coronavirus, such as the population, the density, the rate of traffic flow, the percentage of people wearing masks or PPE etc. However, this report focuses on the climate - more specifically the temperature of a country/region for the change in rate of transmission to see the effects of the coronavirus. In the report, we were able to see results on how temperature affects the transmission rate of the coronavirus, where if temperature of the region decreases, the transmission rate increases.
 
 
